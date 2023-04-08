@@ -9,6 +9,8 @@ import os
 from dotenv import load_dotenv
 from playwright.sync_api import Playwright, sync_playwright
 
+from parsers import parse_html_to_pl
+
 TEST_TICKER = "NOK"
 HEADLESS = True
 
@@ -20,35 +22,6 @@ with open("./ch_data/ticker_list.json") as fj:
     ticker_list = load(fj)
 
 
-def parse_html_to_df(page_text: str) -> pd.DataFrame:
-    soup = BeautifulSoup(page_text, "lxml")
-    data_tables = soup.find("div", {"ng-bind-html": "$ctrl.dataTableHtml"})
-    tables = data_tables.find_all("table", {"class": "table"})  # type: ignore
-    parsed_tables = pd.read_html(str(tables), flavor="lxml")
-    df = pd.concat(parsed_tables)
-    df.columns = ("date", "value")
-    return df
-
-
-def parse_html_to_pd(page_text: str) -> pd.DataFrame:
-    df = parse_html_to_df(page_text)
-    df["date"] = pd.to_datetime(df["date"], format="%B %d, %Y")
-    df["date"] = df["date"].dt.to_period("M").dt.to_timestamp()
-    df["value"] = df["value"].str.strip("%").astype(np.float16)
-    return df
-
-
-def parse_html_to_pl(page_text: str) -> pl.DataFrame:
-    df = parse_html_to_df(page_text)
-    df["date"] = pd.to_datetime(df["date"], format="%B %d, %Y")
-    df["date"] = df["date"].dt.to_period("M").dt.to_timestamp()
-    pldf = pl.from_pandas(df)
-    pldf = pldf.with_columns(
-        pldf["value"].str.replace("%", "").cast(pl.Float64).alias("value")
-    )
-    return pldf
-
-
 def run(playwright: Playwright, tickers: list[str]) -> None:
     browser_context = playwright.chromium.launch_persistent_context(
         "./ch_data/", headless=HEADLESS
@@ -56,7 +29,9 @@ def run(playwright: Playwright, tickers: list[str]) -> None:
     page = browser_context.pages[0]
     # Auth sequence -------
     page.goto("https://ycharts.com/login")
-    if page.get_by_text("Welcome back!").is_visible(): # if login page is visible -> run
+    if page.get_by_text(
+        "Welcome back!"
+    ).is_visible():  # if login page is visible -> run
         sleep(1)
         page.get_by_placeholder("name@company.com").click()
         page.get_by_placeholder("name@company.com").fill(YCHART_EMAIL)
