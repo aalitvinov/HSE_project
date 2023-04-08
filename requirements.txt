@@ -1,5 +1,7 @@
 beautifulsoup4
-selenium
+pandas
+numpy
+black
 lxml
 pytest-playwright
 polars
