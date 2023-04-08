@@ -90,8 +90,6 @@ def run(playwright: Playwright, tickers: list[str]) -> None:
         except:
             continue
 
-    global df_pl_res
-    df_pl_res = dfs_pl
     browser_context.close()
 
 
