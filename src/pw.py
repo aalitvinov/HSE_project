@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from playwright.sync_api import Playwright, sync_playwright
 
 TEST_TICKER = "NOK"
-DEBUG_STATE = True
+HEADLESS = True
 
 load_dotenv()
 YCHART_EMAIL = str(os.environ.get("YCHART_EMAIL"))
@@ -51,24 +51,20 @@ def parse_html_to_pl(page_text: str) -> pl.DataFrame:
 
 def run(playwright: Playwright, tickers: list[str]) -> None:
     browser_context = playwright.chromium.launch_persistent_context(
-        ".\\ch_data\\", headless=True
+        "./ch_data/", headless=HEADLESS
     )
     page = browser_context.pages[0]
     # Auth sequence -------
     page.goto("https://ycharts.com/login")
-    if page.get_by_text("Welcome back!").is_visible():
+    if page.get_by_text("Welcome back!").is_visible(): # if login page is visible -> run
         sleep(1)
         page.get_by_placeholder("name@company.com").click()
-        page.get_by_placeholder("name@company.com").fill(
-            YCHART_EMAIL
-        )
+        page.get_by_placeholder("name@company.com").fill(YCHART_EMAIL)
         page.get_by_placeholder("Password").click()
         page.get_by_placeholder("Password").fill("YCHART_PASSWORD")
         page.locator("label").filter(has_text="Remember me on this device").click()
         page.get_by_role("button", name="Sign In").click()
     # ---------------------
-    if DEBUG_STATE:
-        ticker = TEST_TICKER
 
     filenames = list()
     for file in os.listdir("opm_parqs"):
@@ -78,14 +74,9 @@ def run(playwright: Playwright, tickers: list[str]) -> None:
     dfs_pl: list[pl.DataFrame] = []
     for ticker in (pbar := tqdm(tickers)):
         pbar.set_description(f"Processing {ticker}")
-        # if ticker in filenames:
-        #     pldf = pl.read_parquet(f"./opm_parqs/{ticker}.parquet")
-        # else:
+
         url = f"https://ycharts.com/companies/{ticker}/operating_margin_ttm"
-        # print("going to ", url)
         page.goto(url)
-        # global page_text
-        # page_text = page.content()
         try:
             pldf = (
                 parse_html_to_pl(page.content())
@@ -111,15 +102,3 @@ with sync_playwright() as playwright:
         filenames.append(filename)
     last_ticker_idx = ticker_list.index(filenames[-1])
     run(playwright, tickers=ticker_list[last_ticker_idx + 1 :])
-
-# df_merged = df_pl_res[0]
-# for df in df_pl_res[1:]:
-#     df_merged = df_merged.join(df, on="date", how="outer")
-# # df_pl_joined = pl.concat(df_pl_res, how="horizontal")  # type: ignore
-# df_merged.write_parquet("test.parquet")
-# df_merged.write_csv("test.csv")
-# print(df_merged)
-
-
-# with open(f"{TEST_TICKER}.html", "x") as html_f:
-#     html_f.write(page_text)
