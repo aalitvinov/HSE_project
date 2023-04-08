@@ -1,0 +1,8 @@
+beautifulsoup4
+selenium
+lxml
+pytest-playwright
+polars
+pyarrow
+tqdm
+python-dotenv
